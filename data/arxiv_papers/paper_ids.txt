@@ -1,0 +1,12 @@
+# arXiv paper IDs used for validation benchmarks.
+# Download from https://arxiv.org/abs/<ID> to reproduce.
+#
+# These 5 papers are used in the 5-paper timing benchmark
+# and initial threshold validation (results/CHROMA_FINDING.md).
+# The full 30-paper distribution (results/DISTRIBUTION_2D.md)
+# uses the measure_distribution.py script with its own ID list.
+1512.03385
+1706.03762
+2005.12872
+2010.11929
+2103.14030
