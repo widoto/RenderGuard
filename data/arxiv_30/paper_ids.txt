@@ -1,0 +1,47 @@
+# arXiv 30-paper distribution measurement set
+# Minimum 5 categories: cs, math, physics, stat, econ, q-bio
+# Selected for diversity: varying LaTeX styles, hyperref configs, figure density
+#
+# Format: arxiv_id  category  short_title
+
+# cs (8 papers - varied subcategories)
+2301.10226  cs.SE       codex-lexi
+2302.13971  cs.CL       llama
+2303.08774  cs.CL       gpt4-techreport
+2304.02643  cs.CV       segment-anything
+2305.10601  cs.CL       tree-of-thoughts
+2306.05685  cs.AI       phi-1
+2307.09288  cs.CL       llama2
+2312.00752  cs.CL       mamba
+
+# math (6 papers)
+2301.02635  math.AG     algebraic-geometry
+2302.06576  math.PR     random-matrices
+2303.01469  math.NT     number-theory
+2304.09512  math.CO     combinatorics
+2305.04723  math.AP     pde-regularity
+2306.11794  math.DG     ricci-flow
+
+# physics (6 papers)
+2301.01264  physics.flu-dyn  turbulence
+2302.00628  hep-th      holography
+2303.15056  cond-mat     topological
+2304.01393  quant-ph     quantum-error
+2305.18404  astro-ph     exoplanet
+2306.09375  physics.optics  photonic
+
+# stat (5 papers)
+2301.00808  stat.ML     conformal-prediction
+2302.05543  stat.ME     causal-inference
+2303.05510  stat.ML     tabular-deep
+2304.06035  stat.AP     bayesian-workflow
+2305.14314  stat.ML     distributional-shift
+
+# econ (3 papers)
+2301.07268  econ.EM     synthetic-control
+2302.04898  econ.TH     mechanism-design
+2303.17580  econ.GN     inequality
+
+# q-bio (2 papers)
+2301.08362  q-bio.GN    genomics-transformer
+2302.10205  q-bio.PE    epidemiology
