@@ -1,0 +1,13 @@
+# Korean injection patterns — one per line.
+# Case-insensitive substring match against span text.
+
+이전 지시를 무시
+이전 명령을 무시
+위의 내용을 무시
+이전 지시 무시
+모든 지시를 무시
+새로운 지시
+시스템 프롬프트
+너는 이제
+역할을 바꿔
+지시를 출력

@@ -1,0 +1,31 @@
+# English injection patterns — one per line.
+# Case-insensitive substring match against span text.
+# Lines starting with # are comments. Blank lines are ignored.
+# Add new patterns by editing this file — no code changes needed.
+
+ignore previous
+ignore all previous
+ignore the above
+disregard previous
+disregard the above
+disregard all prior
+forget previous
+forget the above
+forget all prior
+override previous
+override instructions
+new instructions
+system prompt
+you are now
+act as if
+pretend you are
+do not follow
+instead do
+actually do
+reveal your
+reveal the system
+output your system
+print your instructions
+repeat everything above
+translate the above
+what are your instructions
