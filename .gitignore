@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# arXiv PDFs — not redistributable; see data/*/paper_ids.txt
+data/arxiv_papers/*.pdf
+data/arxiv_30/*.pdf
+
+# Results — intermediate artifacts
+results/*.csv
+results/*.json
+results/quadrant_inspect/
+results/quadrant_spans.csv
+
+# IDE / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
