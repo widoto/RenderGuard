@@ -23,7 +23,7 @@ except ImportError as exc:
 
 import pymupdf
 
-from visual_sanitizer.core import (
+from core import (
     DetectorConfig,
     PolicyConfig,
     PolicyDecision,

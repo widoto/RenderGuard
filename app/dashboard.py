@@ -4,7 +4,7 @@ Single-file demo that imports the frozen core detection pipeline
 and presents results with interactive visualizations.
 
 Usage:
-    streamlit run visual_sanitizer/app/dashboard.py
+    streamlit run app/dashboard.py
 """
 
 from __future__ import annotations
@@ -19,11 +19,11 @@ import pymupdf
 import streamlit as st
 
 # Ensure project root is importable
-_project_root = str(Path(__file__).resolve().parents[2])
+_project_root = str(Path(__file__).resolve().parents[1])
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from visual_sanitizer.core import (
+from core import (
     DetectorConfig,
     PolicyDecision,
     ScanResult,
@@ -34,7 +34,8 @@ from visual_sanitizer.core import (
     scan_document,
     score_findings,
 )
-from visual_sanitizer.core.render_diff import _pixel_rect, _render_page
+from PIL import Image, ImageDraw
+from core.render_diff import _build_glyph_mask, _open_textless, _pixel_rect, _render_page
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -45,8 +46,10 @@ _BBOX_WIDTH = 3  # pixels
 _COLOR_HIDDEN = (255, 40, 40)       # red
 _COLOR_SUSPICIOUS = (255, 165, 0)   # orange
 _TEXT_PREVIEW_LEN = 20
+_COLOR_GLYPH_HIGHLIGHT = (255, 255, 0)  # yellow for glyph mask pixels
+_CORE_THRESHOLD = 0.9
 
-st.set_page_config(page_title="PDF Security Scanner", layout="wide")
+st.set_page_config(page_title="RenderGuard", layout="wide")
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +88,24 @@ def _mask_text(text: str) -> str:
     if len(text) <= _TEXT_PREVIEW_LEN:
         return text
     return text[:_TEXT_PREVIEW_LEN] + "\u2026"
+
+
+def _draw_labels(
+    img: np.ndarray,
+    labels: list[tuple[tuple[int, int, int, int], str]],
+    color: tuple[int, int, int],
+) -> np.ndarray:
+    """Draw text labels on image via PIL. Returns modified array."""
+    pil_img = Image.fromarray(img)
+    draw = ImageDraw.Draw(pil_img)
+    for rect, text in labels:
+        x0, y0, _x1, _y1 = rect
+        label_h = 14
+        label_y = y0 - label_h - 2 if y0 > label_h + 2 else y0 + 2
+        tw = len(text) * 7 + 4
+        draw.rectangle([x0, label_y, x0 + tw, label_y + label_h], fill=color)
+        draw.text((x0 + 2, label_y + 1), text, fill=(255, 255, 255))
+    return np.array(pil_img)
 
 
 def _defang_text(text: str) -> str:
@@ -200,7 +221,7 @@ def _section_threat_table(findings: list[SpanFinding]) -> None:
 
 
 def _section_page_viz(result: ScanResult, pdf_path: str) -> None:
-    """Side-by-side page visualizations with bbox overlays."""
+    """Side-by-side page visualizations with glyph mask highlighting."""
     flagged = [
         f for f in result.findings
         if f.verdict in (Verdict.HIDDEN, Verdict.SUSPICIOUS)
@@ -215,24 +236,52 @@ def _section_page_viz(result: ScanResult, pdf_path: str) -> None:
     st.subheader("Page Visualizations")
 
     doc = pymupdf.open(pdf_path)
+    doc_wo = _open_textless(pdf_path)
     try:
         for page_num in sorted(pages_with_findings):
             page = doc[page_num]
+            page_wo = doc_wo[page_num]
             img_original = _render_page(page, _DPI)
+            img_wo = _render_page(page_wo, _DPI)
 
-            # Draw overlays on original
+            # Left: original with bbox overlays
             img_left = img_original.copy()
             for f in pages_with_findings[page_num]:
                 rect = _pixel_rect(f.bbox, _SCALE, img_left.shape)
                 if rect:
                     _draw_bbox(img_left, rect, _color_for_verdict(f.verdict))
 
-            # Inverted view with same overlays
-            img_right = (255 - img_original).copy()
+            # Right: dark background + glyph mask highlights
+            img_right = (img_original.astype(np.float32) * 0.2).astype(np.uint8)
+            invisible_labels: list[tuple[tuple[int, int, int, int], str]] = []
+
             for f in pages_with_findings[page_num]:
                 rect = _pixel_rect(f.bbox, _SCALE, img_right.shape)
-                if rect:
-                    _draw_bbox(img_right, rect, _color_for_verdict(f.verdict))
+                if rect is None:
+                    continue
+                x0, y0, x1, y1 = rect
+
+                if f.verdict == Verdict.HIDDEN:
+                    if f.glyph_px > 0:
+                        crop_w = img_original[y0:y1, x0:x1]
+                        crop_wo = img_wo[y0:y1, x0:x1]
+                        _, mask = _build_glyph_mask(
+                            crop_w, crop_wo, _CORE_THRESHOLD,
+                        )
+                        if mask is not None:
+                            region = img_right[y0:y1, x0:x1]
+                            region[mask] = _COLOR_GLYPH_HIGHLIGHT
+                    else:
+                        invisible_labels.append(
+                            (rect, "invisible (no pixels)")
+                        )
+
+                _draw_bbox(img_right, rect, _color_for_verdict(f.verdict))
+
+            if invisible_labels:
+                img_right = _draw_labels(
+                    img_right, invisible_labels, _COLOR_HIDDEN,
+                )
 
             st.markdown(f"**Page {page_num + 1}**")
             col_l, col_r = st.columns(2)
@@ -241,21 +290,23 @@ def _section_page_viz(result: ScanResult, pdf_path: str) -> None:
             with col_r:
                 st.image(
                     img_right,
-                    caption="Inverted (hidden text revealed)",
+                    caption="Detected hidden text (glyph mask)",
                     use_container_width=True,
                 )
     finally:
         doc.close()
+        doc_wo.close()
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main() -> None:
-    st.title("PDF Security Scanner")
+    st.title("RenderGuard")
+    st.caption("Hidden-text detection for PDF prompt injection · PDF 은닉 텍스트 탐지기")
     st.markdown(
-        "Upload a PDF to scan for hidden or near-invisible text that could "
-        "carry prompt-injection payloads."
+        "PDF를 업로드하면 프롬프트 인젝션에 악용될 수 있는 "
+        "숨겨진 텍스트를 자동으로 탐지합니다."
     )
 
     uploaded = st.file_uploader("Choose a PDF file", type=["pdf"])

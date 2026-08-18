@@ -1,1 +1,1 @@
-"""Tests for visual_sanitizer integrations."""
+"""Tests for RenderGuard integrations."""

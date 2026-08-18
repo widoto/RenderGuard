@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from visual_sanitizer.core import PolicyConfig
-from visual_sanitizer.integrators.langchain_loader import (
+from core import PolicyConfig
+from integrators.langchain_loader import (
     HiddenTextBlockedError,
     LoaderConfig,
     SANITIZED_MARKER,
