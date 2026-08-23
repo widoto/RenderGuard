@@ -13,45 +13,46 @@ would actually see.
 
 ## Key Results
 
-Corpus F1 and real-document FP rate are always presented together.
-Neither metric stands alone.<sup>1</sup>
+Three-tool comparison on the same datasets, same conditions.<sup>1</sup>
 
-| Metric | Value | Scope |
-|--------|-------|-------|
-| **Corpus F1** | 1.000 | 31 samples<sup>2</sup> (25 hidden + 6 benign) |
-| **Real-document FP rate** | 0.0077 % (20 / 259,043 spans) | 30 arXiv papers, 816 pages<sup>3</sup> |
-| **PhantomLint FP rate** | 0.092 % (3 / 3,257 docs) | ICML 2025, per-document basis |
-| **FP rate ratio** | 12× lower | per-span vs per-document — units differ; directional comparison |
-| **Corpus speed** | 10.0 ms / sample | single-page synthetic PDFs |
-| **Real-document speed** | 92.8 ms / page | 30 arXiv papers, CR-first gate enabled |
-| **vs doc-sherlock** | 73× faster | corpus only (10.0 vs 729.9 ms); real-document comparison not measured |
+|  | pdf-injection-scanner | doc-sherlock | **RenderGuard** |
+|--|----------------------|-------------|----------------|
+| **Approach** | Declared-color threshold | Heuristic detectors | Render-diff (CR + ΔE₀₀) |
+| **Color-hiding recall**<sup>2</sup> | 40% (8/20) | **100%** (20/20) | **100%** (20/20) |
+| **Corpus precision**<sup>3</sup> | 83.3% (5/6) | 33.3% (2/6) | **100%** (6/6) |
+| **Real-doc clean rate**<sup>4</sup> | **63.3%** (19/30) | 0% (0/28) | 43.3% (13/30) |
+| **Speed** (ms/doc) | 2,662 | 98,297 | **2,574** |
+| **Resources** | CPU | CPU | CPU (no OCR, no GPU, no ML) |
 
 - No OCR, no GPU, no ML model. Pure pixel measurement on CPU.
 - Thresholds (CR < 3.0, ΔE₀₀ < 10.0) are derived from the gap between the
-  hidden-corpus maximum and the nearest normal span in a 259,043-span
+  hidden-corpus maximum and the nearest normal span in a 290,044-span
   distribution — not hand-picked constants. Hidden max ΔE₀₀ = 6.74, nearest
   normal span ΔE₀₀ = 12.03, gap = 5.29 units.
 
-<sup>1</sup> F1 = 1.000 on a 31-sample corpus can overstate confidence without
-real-document context. The 0.0077 % FP rate on 259k spans bounds the
-false-alarm risk that F1 alone cannot capture.
+<sup>1</sup> All tools run with default settings, no tuning. Detection is
+measured on an attack corpus; false positives on clean real documents.
+These are separate datasets — standard practice for detection systems
+(attacks require labeled attack samples; FP requires clean documents).
+See `results/FINAL_COMPARISON.md` for full methodology.
 
-<sup>2</sup> Full corpus: 33 samples = 27 hidden + 6 benign. Of the 27 hidden,
-`tiny_font_0.5pt` and `offpage` are excluded (xfail) because they test
-size-based and position-based hiding respectively — techniques outside
-the color-matching model (see Limitations §3, §4). F1 is evaluated on
-the remaining 25 hidden + 6 benign = 31 samples.
+<sup>2</sup> Corpus: 20 color-based hidden samples (full corpus 33 = 27 hidden
+\+ 6 benign; `tiny_font` and `offpage` excluded as size/position-based
+techniques outside the color-matching model — see Limitations §3, §4).
+pdf-injection-scanner misses all non-white-background attacks (12/20).
+Source: `results/baseline_matrix.csv`.
 
-<sup>3</sup> Of the 20 FP spans: **(a)** 17 are TeX font encoding artifacts from a
-single paper (2301.08362) — cmex10 maps delimiter char code 0xB8 to U+00FF
-("ÿ") via a wrong ToUnicode CMap. The text layer extracts "ÿ" but the visual
-render shows only anti-aliased edges of math symbols (pixel mean 254.8/255).
-**(b)** 3 are thin-glyph measurement artifacts from other papers — normal text
-with very thin strokes (hyphens, periods, math fragments) that produce < 5
-glyph pixels at 150 DPI. The render-diff detects only anti-aliased edge
-residue, yielding near-background CR/ΔE values.
+<sup>3</sup> 6 benign corpus samples (gray caption, light footer, colored heading,
+syntax-highlighted code, dark slide, gray-on-white pair). doc-sherlock
+false-positives on 4 of 6. Source: `results/baseline_matrix.csv`.
 
-![259k span scatter plot](results/distribution_2d.png)
+<sup>4</sup> 30 arXiv papers (816 pages, no hidden text). "Clean" = zero false
+positives in the document. doc-sherlock processed 28/30 (2 timed out
+at 300s); all 28 had false positives. Each tool reports findings in
+different units (span / word / segment), so document-level clean rate
+is used for fair comparison. Source: `results/COMPETITIVE_FP.md`.
+
+![290k span scatter plot](results/distribution_2d.png)
 
 *Left: full distribution (log-scale CR vs ΔE₀₀). Right: low-CR quadrant
 zoom. Red ✕ = corpus hidden samples, clustered at bottom-left. Blue dots =
@@ -67,7 +68,8 @@ Two open-source scanners
 ([pdf-injection-scanner](https://github.com/Andy8647/pdf-injection-scanner),
 [PDF-Prompt-Injection-Toolkit](https://github.com/zhihuiyuze/PDF-Prompt-Injection-Toolkit))
 check whether each character's RGB exceeds a fixed threshold (e.g. > 0.9).
-Both achieved **recall 45.5 %** (10 / 22 hidden samples) on our corpus.
+Both achieved **recall 40%** (8/20 color-hiding samples) on our corpus —
+missing **60% of attacks** that use non-white backgrounds.
 
 They fail whenever the background is not white. The Pair C series demonstrates
 this — every sample has CR = 1.10 (equally invisible), but tools that assume
@@ -167,15 +169,16 @@ mode (Tr=3) and cases where foreground exactly matches background
 
 ### Visual verification
 
-The dashboard renders original and color-inverted views side by side.
-Hidden text that is invisible in the original becomes visible when
-pixel values are inverted (255 − original):
+The dashboard renders original and glyph-mask views side by side.
+Hidden text that is invisible in the original is revealed by highlighting
+the detected glyph pixels in yellow on a darkened background:
 
-![Side-by-side: black_on_black hidden text revealed](results/dashboard_test/demo_a_sidebyside.png)
+![RenderGuard dashboard — BLOCK with glyph mask visualization](docs/img/dashboard_demo.png)
 
-*Left: original render — black text on black background, invisible to the
-eye. Red bbox marks the detected hidden span. Right: inverted render —
-the same text is now clearly readable.*
+*RenderGuard dashboard detecting hidden text in a PDF. Top: BLOCK decision
+with threat report. Bottom: original render (left) with red bbox overlay,
+and glyph-mask view (right) highlighting detected hidden text pixels in
+yellow on a darkened background.*
 
 
 ## Installation and Usage
@@ -296,9 +299,8 @@ comparison.
 
 TeX math extension fonts (cmex10) map delimiter char codes to wrong Unicode
 codepoints. The text layer extracts "ÿ"/"ř"; the visual render shows a math
-symbol or nothing. Not an intentional attack. Currently counted as FP
-(17 of 20 total FP spans). **Needed:** Font encoding validation or
-glyph-name → Unicode cross-check.
+symbol or nothing. Not an intentional attack. Currently counted as FP.
+**Needed:** Font encoding validation or glyph-name → Unicode cross-check.
 
 ### 3. Tiny Font Hiding (< 0.5 pt)
 
