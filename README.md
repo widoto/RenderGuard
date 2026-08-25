@@ -282,56 +282,6 @@ python tools/benchmark_timing.py
 Measures per-page latency with and without the CR-first ΔE₀₀ gate.
 
 
-## Limitations
-
-Six techniques are out of scope for the current detector. Each is
-documented with rationale and the approach that would be needed.
-
-### 1. ToUnicode Spoofing
-
-A custom font maps payload text to visually normal glyphs via a falsified
-ToUnicode CMap. The rendered text looks legitimate; only the text extraction
-layer carries the payload. CR and ΔE measure visual contrast — if the visual
-render is normal, both metrics are high. **Needed:** OCR-vs-text-layer
-comparison.
-
-### 2. Font Encoding Artifacts
-
-TeX math extension fonts (cmex10) map delimiter char codes to wrong Unicode
-codepoints. The text layer extracts "ÿ"/"ř"; the visual render shows a math
-symbol or nothing. Not an intentional attack. Currently counted as FP.
-**Needed:** Font encoding validation or glyph-name → Unicode cross-check.
-
-### 3. Tiny Font Hiding (< 0.5 pt)
-
-Text at extremely small font sizes produces fewer than 5 glyph pixels at
-150 DPI, falling below the noise filter. This is a size-based technique,
-orthogonal to the color-matching model. **Needed:** Minimum font-size check
-on the text extraction layer.
-
-### 4. Off-Page Text
-
-Text placed outside the visible page boundary (negative coordinates or beyond
-MediaBox) is never rendered, so render-diff produces no signal. **Needed:**
-Bbox-vs-MediaBox boundary check on the text extraction layer.
-
-### 5. Tr=3 Scan / OCR Layer Ambiguity
-
-PDF text rendering mode 3 (invisible) is used both by OCR tools for
-accessibility and by attackers for injection. The detector reports Tr=3 spans
-as `invisible_render_mode` and the policy flags them, but distinguishing
-benign OCR from attack requires structural heuristics (GlyphLessFont, image
-XObject presence). **Needed:** Structural signal analysis.
-
-### 6. DPI Sensitivity
-
-The detector requires ≥ 150 DPI for reliable glyph pixel detection. Lower DPI
-may cause thin strokes to fall below the noise threshold. 150 DPI is the
-validated default; lower values have not been tested.
-
-Full details: `docs/LIMITATIONS.md`.
-
-
 ## License
 
 Code: MIT
