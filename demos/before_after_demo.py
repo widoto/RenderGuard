@@ -36,7 +36,6 @@ if _project_root not in sys.path:
 import pymupdf
 
 from core import (
-    PolicyConfig,
     PolicyDecision,
     ScanResult,
     SpanFinding,
@@ -190,29 +189,32 @@ def sanitize_with_renderguard(
     langchain-core 미설치 시 core API로 직접 소독 (폴백).
     반환되는 ScanResult는 기본 정책(block_on_hidden=True) 기준 판정.
     """
-    # 먼저 core pipeline으로 스캔 결과 확보
+    # core pipeline으로 스캔 (1회만 실행)
     findings, page_count, page_times = scan_document(str(pdf_path))
     patterns = load_patterns()
     score_findings(findings, patterns=patterns)
-    # 표시용: 기본 정책으로 판정 (block_on_hidden=True)
     scan_result = evaluate(findings, page_count, page_times)
 
-    # SecureDocumentLoader 시도
+    # 스캔 결과를 재사용하여 소독 (중복 스캔 없음)
     try:
-        from integrators.langchain_loader import LoaderConfig, SecureDocumentLoader
+        from integrators.langchain_loader import _sanitize_page_text, SANITIZED_MARKER
 
-        cfg = LoaderConfig(
-            policy=PolicyConfig(block_on_hidden=False),
-            raise_on_block=False,
-        )
-        loader = SecureDocumentLoader(pdf_path, config=cfg)
-        docs = loader.load()
-        sanitized_text = "\n\n".join(doc.page_content for doc in docs)
+        doc = pymupdf.open(str(pdf_path))
+        try:
+            parts = []
+            for page_num in range(len(doc)):
+                content, _ = _sanitize_page_text(
+                    doc[page_num], page_num, scan_result.findings, SANITIZED_MARKER,
+                )
+                parts.append(content)
+            sanitized_text = "\n\n".join(parts)
+        finally:
+            doc.close()
         return sanitized_text, scan_result
     except ImportError:
         pass
 
-    # 폴백: pymupdf text dict에서 HIDDEN 스팬을 수동 치환
+    # 폴백: langchain-core 없이 수동 소독
     sanitized_text = _fallback_sanitize(pdf_path, scan_result.findings)
     return sanitized_text, scan_result
 

@@ -1,9 +1,9 @@
 # Core dependencies
-pymupdf>=1.28.0
-numpy>=2.0.0
+pymupdf==1.28.0
+numpy==2.3.1
 
 # Optional: LangChain document loader (integrators/langchain_loader.py)
-# langchain-core>=0.3.0
+# langchain-core==1.5.3
 
 # Optional: Streamlit dashboard (app/dashboard.py)
-# streamlit>=1.30.0
+# streamlit==1.61.1

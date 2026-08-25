@@ -24,3 +24,5 @@ results/quadrant_spans.csv
 *.swp
 .idea/
 .vscode/
+
+tools/verification_harness/venvs/
